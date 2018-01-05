@@ -2,33 +2,70 @@
 import recursiveProxy from '../src/index';
 
 describe('Recursive Proxy', () => {
+    it('invalid proxy target', () => {
+        expect(() => {
+            recursiveProxy(
+                {
+                    followFunction: false
+                },
+                function () {
+                }
+            );
+        }).toThrow();
+
+        expect(() => {
+            recursiveProxy(
+                {},
+                []
+            );
+        }).toThrow();
+
+        expect(() => {
+            recursiveProxy(
+                {},
+                new Map
+            );
+        }).toThrow();
+    });
+
+    it('valid proxy target', () => {
+        expect(recursiveProxy({}, function () {})).toBeTruthy();
+        expect(recursiveProxy({ followArray: true }, [])).toBeTruthy();
+        expect(recursiveProxy({ followNonPlainObject: true }, new Map)).toBeTruthy();
+    });
+
     it('shallow value replace', () => {
         const proxy = recursiveProxy({
             value: {
-                '.a': 5
+                '.a': 5,
+                '.c': 15
             }
-        })({
+        }, {
             a: 1
         });
 
         expect(proxy.a).toBe(5);
+        expect(proxy.c).toBe(15);
         expect(proxy.b).toBeUndefined();
     });
 
     it('nested value replace', () => {
         const proxy = recursiveProxy({
             value: {
-                '.a.b.c': 5
+                '.a.b.c': 5,
+                '.a.b.d': 7
             }
-        })({
+        }, {
             a: {
                 b: {
-                    c: 2
+                    c: 2,
+                    d: 1
                 }
             }
         });
 
         expect(proxy.a.b.c).toBe(5);
+        expect(proxy.a.b.d).toBe(7);
         expect(proxy.b).toBeUndefined();
     });
 
@@ -37,7 +74,7 @@ describe('Recursive Proxy', () => {
             value: {
                 '.a': 5
             }
-        })({});
+        }, {});
 
         expect(proxy.a).toBe(5);
         expect(proxy.b).toBeUndefined();
@@ -48,11 +85,9 @@ describe('Recursive Proxy', () => {
             value: {
                 '.a.b.c': 5
             }
-        })({
+        }, {
             a: {
-                b: {
-
-                }
+                b: {}
             }
         });
 
@@ -68,7 +103,7 @@ describe('Recursive Proxy', () => {
                 '.a.b.c': 5,
                 '': dummy
             }
-        })({});
+        }, {});
 
         expect(proxy.a.b.c).toBe(5);
         expect(Object.getPrototypeOf(proxy.b) === Object.getPrototypeOf({})).toBeTruthy();
@@ -92,7 +127,7 @@ describe('Recursive Proxy', () => {
                     return value;
                 }
             }
-        })({});
+        }, {});
 
         expect(proxy.a.b.c).toBe(10);
         expect(Object.getPrototypeOf(proxy.b) === Object.getPrototypeOf({})).toBeTruthy();
@@ -104,7 +139,7 @@ describe('Recursive Proxy', () => {
             creator: {
                 '.a': (value) => 6 * value
             }
-        })({
+        }, {
             a: 3
         });
 
@@ -117,7 +152,7 @@ describe('Recursive Proxy', () => {
             creator: {
                 '.a.b.c': (value) => 6 * value
             }
-        })({
+        }, {
             a: {
                 b: {
                     c: 2
@@ -134,7 +169,7 @@ describe('Recursive Proxy', () => {
             creator: {
                 '.a': () => 6
             }
-        })({});
+        }, {});
 
         expect(proxy.a).toBe(6);
         expect(proxy.b).toBeUndefined();
@@ -145,11 +180,9 @@ describe('Recursive Proxy', () => {
             creator: {
                 '.a.b.c': () => 7
             }
-        })({
+        }, {
             a: {
-                b: {
-
-                }
+                b: {}
             }
         });
 
@@ -160,7 +193,7 @@ describe('Recursive Proxy', () => {
     it('shallow read only, silent', () => {
         const proxy = recursiveProxy({
             readOnly: 'silent'
-        })({
+        }, {
             a: 1
         });
 
@@ -177,7 +210,7 @@ describe('Recursive Proxy', () => {
     it('shallow read only, error', () => {
         const proxy = recursiveProxy({
             readOnly: 'error'
-        })({
+        }, {
             a: 1
         });
 
@@ -199,7 +232,7 @@ describe('Recursive Proxy', () => {
     it('nested read only, silent', () => {
         const proxy = recursiveProxy({
             readOnly: 'silent'
-        })({
+        }, {
             a: {
                 b: {
                     c: 2
@@ -220,7 +253,7 @@ describe('Recursive Proxy', () => {
     it('nested read only, error', () => {
         const proxy = recursiveProxy({
             readOnly: 'error'
-        })({
+        }, {
             a: {
                 b: {
                     c: 2
@@ -240,6 +273,278 @@ describe('Recursive Proxy', () => {
         }).toThrow();
 
         expect(proxy.a.b.c).toBe(2);
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('value wildcard replace', () => {
+        const proxy = recursiveProxy({
+            value: {
+                'c': 5,
+                'f': 15
+            }
+        }, {
+            a: {
+                b: {
+                    c: 2
+                }
+            }
+        });
+
+        expect(proxy.c).toBe(5);
+        expect(proxy.a.c).toBe(5);
+        expect(proxy.a.b.c).toBe(5);
+
+        expect(proxy.f).toBe(15);
+        expect(proxy.a.f).toBe(15);
+        expect(proxy.a.b.f).toBe(15);
+
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('wildcard value creator', () => {
+        const proxy = recursiveProxy({
+            creator: {
+                'c': (value) => 10 * value
+            }
+        }, {
+            a: {
+                b: {
+                    c: 2
+                },
+                c: 8
+            },
+            c: 4
+        });
+
+        expect(proxy.c).toBe(10 * 4);
+        expect(proxy.a.c).toBe(10 * 8);
+        expect(proxy.a.b.c).toBe(10 * 2);
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('shallow value setter', () => {
+        const proxy = recursiveProxy({
+            setter: {
+                '.a': (target, name, value) => {
+                    target[name] = value * 2;
+                    return true;
+                }
+            }
+        }, {
+            a: 1
+        });
+
+        expect(proxy.a).toBe(1);
+        proxy.a = 3;
+        expect(proxy.a).toBe(6);
+
+        expect(proxy.b).toBeUndefined();
+        proxy.b = 3;
+        expect(proxy.b).toBe(3);
+    });
+
+    it('nested value setter', () => {
+        const proxy = recursiveProxy({
+            setter: {
+                '.a.b.c': (target, name, value) => {
+                    target[name] = value * 2;
+                }
+            }
+        }, {
+            a: {
+                b: {
+                    c: 2
+                }
+            }
+        });
+
+        expect(proxy.a.b.c).toBe(2);
+        proxy.a.b.c = 5;
+        expect(proxy.a.b.c).toBe(10);
+
+        expect(proxy.b).toBeUndefined();
+        proxy.b = 3;
+        expect(proxy.b).toBe(3);
+    });
+
+    it('throwing value setter', () => {
+        const proxy = recursiveProxy({
+            setter: {
+                '.a': () => {
+                    return false;
+                }
+            }
+        }, {
+            a: 1
+        });
+
+        expect(proxy.a).toBe(1);
+        expect(() => proxy.a = 3).toThrow();
+    });
+
+    it('wildcard value setter', () => {
+        const proxy = recursiveProxy({
+            setter: {
+                'c': (target, name, value) => {
+                    target[name] = value * 3;
+                    return true;
+                }
+            }
+        }, {
+            a: {
+                b: {
+                    c: 2
+                },
+                c: 1
+            }
+        });
+
+        expect(proxy.a.b.c).toBe(2);
+        proxy.a.b.c = 5;
+        expect(proxy.a.b.c).toBe(15);
+
+        expect(proxy.a.c).toBe(1);
+        proxy.a.c = 2;
+        expect(proxy.a.c).toBe(6);
+
+        expect(proxy.b).toBeUndefined();
+        proxy.b = 3;
+        expect(proxy.b).toBe(3);
+
+        expect(proxy.c).toBeUndefined();
+        proxy.c = 3;
+        expect(proxy.c).toBe(9);
+    });
+
+    it('shallow apply', () => {
+        const proxy = recursiveProxy({
+            apply: {
+                '': () => 10
+            }
+        }, function () {
+        });
+
+        expect(proxy()).toBe(10);
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('nested apply', () => {
+        const proxy = recursiveProxy({
+            apply: {
+                '.a.b.c': () => 10
+            }
+        }, {
+            a: {
+                b: {
+                    c: function () {
+                    },
+                    x: function () {
+                        return 'apud';
+                    }
+                }
+            }
+        });
+
+        expect(proxy.a.b.c()).toBe(10);
+        expect(proxy.a.b.x()).toBe('apud');
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('wildcard apply', () => {
+        const proxy = recursiveProxy({
+            apply: {
+                'c': () => 10
+            }
+        }, {
+            c: function () {
+            },
+            a: {
+                c: function () {
+                },
+                b: {
+                    c: function () {
+                    },
+                    x: function () {
+                        return 'apud';
+                    }
+                }
+            }
+        });
+
+        expect(proxy.c()).toBe(10);
+        expect(proxy.a.c()).toBe(10);
+        expect(proxy.a.b.c()).toBe(10);
+        expect(proxy.a.b.x()).toBe('apud');
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('shallow construct', () => {
+        const expectedResult = { u: 'la-la-la' };
+
+        const proxy = recursiveProxy({
+            construct: {
+                '': () => expectedResult
+            }
+        }, function () {
+        });
+
+        expect(new proxy).toBe(expectedResult);
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('nested construct', () => {
+        const expectedResult = { i: 'love you baby' };
+        const unexpectedResult = { u: 'la-la-la' };
+
+        const proxy = recursiveProxy({
+            construct: {
+                '.a.b.c': () => expectedResult
+            }
+        }, {
+            a: {
+                b: {
+                    c: function () {
+                    },
+                    x: function () {
+                        return unexpectedResult;
+                    }
+                }
+            }
+        });
+
+        expect(new proxy.a.b.c).toBe(expectedResult);
+        expect(new proxy.a.b.x).toBe(unexpectedResult);
+        expect(proxy.b).toBeUndefined();
+    });
+
+    it('wildcard construct', () => {
+        const expectedResult = { u: 'la-la-la' };
+        const unexpectedResult = { i: 'love you baby' };
+
+        const proxy = recursiveProxy({
+            construct: {
+                'c': () => expectedResult
+            }
+        }, {
+            c: function () {
+            },
+            a: {
+                c: function () {
+                },
+                b: {
+                    c: function () {
+                    },
+                    x: function () {
+                        return unexpectedResult;
+                    }
+                }
+            }
+        });
+
+        expect(new proxy.c).toBe(expectedResult);
+        expect(new proxy.a.c).toBe(expectedResult);
+        expect(new proxy.a.b.c).toBe(expectedResult);
+        expect(proxy.a.b.x()).toBe(unexpectedResult);
         expect(proxy.b).toBeUndefined();
     });
 });

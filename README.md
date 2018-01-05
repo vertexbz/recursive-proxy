@@ -5,15 +5,27 @@ JS Recursive proxy.
 ## Usage
 
 ```js
-import proxyCreator from 'recursive-proxy';
+import RProxy from 'recursive-proxy';
 
 const target = {}; // proxy target
 
 const context = {/* context */};
 
 
-const RProxy = proxyCreator({
+const proxyConfig = {
     // Options
+    
+    // Whether apply (follow) proxy on nested functions
+    // bool, default: true
+    followFunction: true,
+    
+    // Whether apply (follow) proxy on nested arrays
+    // bool, default: false
+    followArray: false,
+    
+    // Whether apply (follow) proxy on nested, non plain objects
+    // bool, default: true
+    followNonPlainObject: false,
     
     // Whether object should be readOnly
     // values: "error", "silent", false (default)
@@ -66,10 +78,10 @@ const RProxy = proxyCreator({
     construct: {
         // (PE): (target, argsArray?, newTarget) => object
     }
-});
+};
 
-const proxy = RProxy(target, context);
+const proxy = RProxy(proxyConfig, target, context);
 // or with new operator
-const proxy = new RProxy(target, context);
+const proxy = new RProxy(proxyConfig, target, context);
 
 ```

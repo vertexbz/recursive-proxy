@@ -2,8 +2,9 @@
 src/
 
 [ignore]
-lib/
-test/
+<PROJECT_ROOT>/lib/.*
+<PROJECT_ROOT>/test/.*
+<PROJECT_ROOT>/flow/.*
 
 [libs]
 flow-typed/

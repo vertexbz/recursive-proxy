@@ -1,7 +1,6 @@
 // @flow
 import contextProxy from 'context-proxy';
-import { matchObjectPath, pathBuilder, triageSet } from './utils';
-import { readOnlyTrapsMixin, silentReadOnlyTrapsMixin } from './readOnly';
+import { getLastPathElement, matchObjectPath, nope, pathBuilder, shh, shouldFollowValue, triageSet } from './utils';
 
 import type { RecursiveContext } from './types';
 
@@ -10,7 +9,7 @@ const enhanceContext = <C, O, T, N>(context: RecursiveContext<C, O, *, N>, targe
     context: context.context,
     origin: context.origin,
     traps: context.traps,
-    path: path ? context.path.concat(String(path)) : context.path,
+    path: context.path.concat(String(path)),
     target
 });
 
@@ -29,7 +28,7 @@ const traps = {
             value = creator.call(ctx.context, value, target, name);
         }
 
-        if (typeof value === 'object' || typeof value === 'function') {
+        if (shouldFollowValue(value, ctx.config)) {
             return contextProxy(value, ctx.traps, ctx);
         }
 
@@ -38,28 +37,29 @@ const traps = {
     set(target: Object, name: string, value: any): boolean {
         const ctx = enhanceContext(this, target, name);
 
-        const setter = matchObjectPath(ctx.config.creator, pathBuilder(ctx.config.pathSeparator, ctx.path), name);
+        const setter = matchObjectPath(ctx.config.setter, pathBuilder(ctx.config.pathSeparator, ctx.path), name);
         if (setter) {
-            return setter.call(ctx.context, target, name, value);
+            return setter.call(ctx.context, target, name, value) !== false;
         }
 
-        try {
-            target[name] = value;
-            return true;
-        } catch (e) {
-            return false;
-        }
+        target[name] = value;
+        return true;
     },
     apply(target: Function, thisArg: any, argArray?: any): any {
-        const apply = matchObjectPath(this.config.apply, pathBuilder(this.config.pathSeparator, this.path), '');
+        const apply = matchObjectPath(this.config.apply, pathBuilder(this.config.pathSeparator, this.path), getLastPathElement(this.path));
         if (apply) {
             return apply.call(this.context, target, thisArg, argArray);
         }
 
-        return Function.prototype.apply.call(target, thisArg, argArray || []);
+        return Function.prototype.apply.call(target, thisArg, (argArray: any));
     },
     construct(target: Function, argArray: any, newTarget?: any): Object {
-        const construct = matchObjectPath(this.config.construct, pathBuilder(this.config.pathSeparator, this.path), '');
+        const construct = matchObjectPath(
+            this.config.construct,
+            pathBuilder(this.config.pathSeparator, this.path),
+            getLastPathElement(this.path)
+        );
+
         if (construct) {
             return construct.call(this.context, target, argArray, newTarget);
         }
@@ -67,6 +67,23 @@ const traps = {
         return new target(...argArray);
     }
 };
+
+const readOnlyTrapsMixin = {
+    set: nope,
+    defineProperty: nope,
+    deleteProperty: nope,
+    preventExtensions: nope,
+    setPrototypeOf: nope
+};
+
+const silentReadOnlyTrapsMixin = {
+    set: shh,
+    defineProperty: shh,
+    deleteProperty: shh,
+    preventExtensions: shh,
+    setPrototypeOf: shh
+};
+
 
 export const triageTraps = triageSet({
     error: Object.assign({}, traps, readOnlyTrapsMixin),

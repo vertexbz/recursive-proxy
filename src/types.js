@@ -10,7 +10,10 @@ export type RecursiveProxyOptions = {
     apply: ObjectOf<(target: Function, any, argArray?: any) => any>,
     construct: ObjectOf<(target: Function, any, newTarget?: any) => Object>,
     readOnly: false | 'silent' | 'error',
-    pathSeparator: string
+    pathSeparator: string,
+    followFunction: boolean,
+    followArray: boolean,
+    followNonPlainObject: boolean
 };
 
 export type RecursiveContext<C, O, T, N> = {

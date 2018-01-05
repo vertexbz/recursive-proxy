@@ -1,0 +1,6 @@
+// @flow
+import type { RecursiveProxyOptions } from './types';
+
+declare export default <S: {}>(opts: $Shape<RecursiveProxyOptions>, target: S, context?: {}) => S;
+
+declare export function recursiveProxy<S: {}>(opts: $Shape<RecursiveProxyOptions>, target: S, context?: {}): S;
