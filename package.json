@@ -1,6 +1,6 @@
 {
   "name": "recursive-proxy",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "JS Recursive proxy.",
   "main": "lib/index.js",
   "author": "Adam Makświej <adam.makswiej@gmail.com>",
@@ -23,12 +23,13 @@
     "eslint-plugin-react": "^7.5.1",
     "flow": "^0.2.3",
     "flow-bin": "^0.62.0",
-    "jest": "^22.0.4"
+    "jest": "^22.0.4",
+    "multimap": "^1.0.2"
   },
   "scripts": {
     "build:flow": "cp flow/index.js.flow src/types.js lib/",
     "build:src": "babel src --out-dir lib -s",
-    "build": "yarn lint && yarn flow && yarn build:src && yarn build:flow",
+    "build": "yarn lint && yarn flow && rm -rf ./lib/ && yarn build:src && yarn build:flow",
     "lint": "eslint src --ignore-path flow/* --ext .js --ext .jsx --cache",
     "lint:fix": "eslint src --ignore-path flow/* --ext .js --ext .jsx --cache --fix",
     "test": "jest",
@@ -38,5 +39,12 @@
     "context-proxy": "^1.1.4",
     "is-plain-object": "^2.0.4",
     "isobject": "^3.0.1"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!<rootDir>/node_modules/",
+      "!<rootDir>/test/helpers.js"
+    ]
   }
 }

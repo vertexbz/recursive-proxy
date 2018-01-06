@@ -1,6 +1,34 @@
 # recursive-proxy
 
-JS Recursive proxy.
+Quite like native ES6 proxy, but recursive!
+
+## Installation
+
+```bash
+yarn add recursive-proxy
+```
+
+or via NPM
+
+```bash
+npm install --save recursive-proxy
+```
+
+## Examples
+
+For more details on how does it work check `examples` folder.
+
+To run examples type
+
+```bash
+yarn babel-node -- example/gets.js
+```
+
+or
+
+```bash
+yarn babel-node -- example/observer.js
+```
 
 ## Usage
 
@@ -27,7 +55,7 @@ const proxyConfig = {
     // bool, default: true
     followNonPlainObject: false,
     
-    // Whether object should be readOnly
+    // Whether proxy should be readOnly
     // values: "error", "silent", false (default)
     readOnly: false,
     
@@ -61,22 +89,22 @@ const proxyConfig = {
     // Replace value with value computed from callback
     // currentValue may come from value trap 
     creator: {
-        // (PE): (currentValue, target, propName) => newValue
+        // (PE): (currentValue, target, propName, pathToTrappedItem) => newValue
     },
     
     // Trap when prop value is changed
     setter: {
-        // (PE): (target, propName, newValue) => changeWasAllowed?
+        // (PE): (target, propName, newValue, pathToTrappedItem) => changeWasAllowed?
     },
     
     // Trap when target is a function and is called
     apply: {
-        // (PE): (target, this, argsArray) => anyValue
+        // (PE): (target, this, argsArray, pathToTrappedItem) => anyValue
     },
     
     // Trap when target is a function and is called with "new" operator
     construct: {
-        // (PE): (target, argsArray?, newTarget) => object
+        // (PE): (target, argsArray?, newTarget, pathToTrappedItem) => object
     }
 };
 
@@ -85,3 +113,4 @@ const proxy = RProxy(proxyConfig, target, context);
 const proxy = new RProxy(proxyConfig, target, context);
 
 ```
+

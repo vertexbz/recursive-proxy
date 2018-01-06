@@ -98,3 +98,4 @@ src/
 .gitignore
 .flowconfig
 yarn.lock
+flow/

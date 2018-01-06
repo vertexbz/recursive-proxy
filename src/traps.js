@@ -16,16 +16,17 @@ const enhanceContext = <C, O, T, N>(context: RecursiveContext<C, O, *, N>, targe
 const traps = {
     get(target: Object, name: string): mixed {
         const ctx = enhanceContext(this, target, name);
+        const builtPath = pathBuilder(ctx.config.pathSeparator, ctx.path);
 
-        let value = matchObjectPath(ctx.config.value, pathBuilder(ctx.config.pathSeparator, ctx.path), name);
+        let value = matchObjectPath(ctx.config.value, builtPath, name);
 
         if (value === undefined) {
             value = target[name];
         }
 
-        const creator = matchObjectPath(ctx.config.creator, pathBuilder(ctx.config.pathSeparator, ctx.path), name);
+        const creator = matchObjectPath(ctx.config.creator, builtPath, name);
         if (creator) {
-            value = creator.call(ctx.context, value, target, name);
+            value = creator.call(ctx.context, value, target, name, ctx.path);
         }
 
         if (shouldFollowValue(value, ctx.config)) {
@@ -39,29 +40,33 @@ const traps = {
 
         const setter = matchObjectPath(ctx.config.setter, pathBuilder(ctx.config.pathSeparator, ctx.path), name);
         if (setter) {
-            return setter.call(ctx.context, target, name, value) !== false;
+            return setter.call(ctx.context, target, name, value, ctx.path) !== false;
         }
 
         target[name] = value;
         return true;
     },
-    apply(target: Function, thisArg: any, argArray?: any): any {
-        const apply = matchObjectPath(this.config.apply, pathBuilder(this.config.pathSeparator, this.path), getLastPathElement(this.path));
+    apply(target: Function, thisArg: any, argArray: ?Array<any>): any {
+        const path = this.path;
+
+        const apply = matchObjectPath(this.config.apply, pathBuilder(this.config.pathSeparator, path), getLastPathElement(path));
         if (apply) {
-            return apply.call(this.context, target, thisArg, argArray);
+            return apply.call(this.context, target, thisArg, argArray, path);
         }
 
         return Function.prototype.apply.call(target, thisArg, (argArray: any));
     },
-    construct(target: Function, argArray: any, newTarget?: any): Object {
+    construct(target: Function, argArray: Array<any>, newTarget?: any): Object {
+        const path = this.path;
+
         const construct = matchObjectPath(
             this.config.construct,
-            pathBuilder(this.config.pathSeparator, this.path),
-            getLastPathElement(this.path)
+            pathBuilder(this.config.pathSeparator, path),
+            getLastPathElement(path)
         );
 
         if (construct) {
-            return construct.call(this.context, target, argArray, newTarget);
+            return construct.call(this.context, target, argArray, newTarget, path);
         }
 
         return new target(...argArray);

@@ -1,8 +1,9 @@
 /* global jest, expect, describe, it */
 import recursiveProxy from '../src/index';
+import { expectLastCallParameter } from './helpers';
 
 describe('Recursive Proxy', () => {
-    it('invalid proxy target', () => {
+    it('handles invalid proxy target', () => {
         expect(() => {
             recursiveProxy(
                 {
@@ -28,13 +29,13 @@ describe('Recursive Proxy', () => {
         }).toThrow();
     });
 
-    it('valid proxy target', () => {
+    it('passes valid proxy target', () => {
         expect(recursiveProxy({}, function () {})).toBeTruthy();
         expect(recursiveProxy({ followArray: true }, [])).toBeTruthy();
         expect(recursiveProxy({ followNonPlainObject: true }, new Map)).toBeTruthy();
     });
 
-    it('shallow value replace', () => {
+    it('can do shallow value replace', () => {
         const proxy = recursiveProxy({
             value: {
                 '.a': 5,
@@ -49,7 +50,7 @@ describe('Recursive Proxy', () => {
         expect(proxy.b).toBeUndefined();
     });
 
-    it('nested value replace', () => {
+    it('can do nested value replace', () => {
         const proxy = recursiveProxy({
             value: {
                 '.a.b.c': 5,
@@ -69,7 +70,7 @@ describe('Recursive Proxy', () => {
         expect(proxy.b).toBeUndefined();
     });
 
-    it('shallow value replace, not existing in target', () => {
+    it('can do shallow value replace, not existing in target', () => {
         const proxy = recursiveProxy({
             value: {
                 '.a': 5
@@ -80,7 +81,7 @@ describe('Recursive Proxy', () => {
         expect(proxy.b).toBeUndefined();
     });
 
-    it('nested value replace, not existing in target', () => {
+    it('can do nested value replace, not existing in target', () => {
         const proxy = recursiveProxy({
             value: {
                 '.a.b.c': 5
@@ -95,7 +96,7 @@ describe('Recursive Proxy', () => {
         expect(proxy.b).toBeUndefined();
     });
 
-    it('nested value replace, always can enter', () => {
+    it('can do nested value replace, always can enter', () => {
         const dummy = {};
 
         const proxy = recursiveProxy({
@@ -110,7 +111,7 @@ describe('Recursive Proxy', () => {
         expect(Object.getPrototypeOf(proxy.b.a.d.f.g.h) === Object.getPrototypeOf({})).toBeTruthy();
     });
 
-    it('nested value replace, always can enter, creator', () => {
+    it('can do nested value replace, always can enter, creator', () => {
         const dummy = {};
 
         const proxy = recursiveProxy({
@@ -134,7 +135,7 @@ describe('Recursive Proxy', () => {
         expect(Object.getPrototypeOf(proxy.b.a.d.f.g.h) === Object.getPrototypeOf({})).toBeTruthy();
     });
 
-    it('shallow value creator', () => {
+    it('can do shallow value creator', () => {
         const proxy = recursiveProxy({
             creator: {
                 '.a': (value) => 6 * value
@@ -546,5 +547,60 @@ describe('Recursive Proxy', () => {
         expect(new proxy.a.b.c).toBe(expectedResult);
         expect(proxy.a.b.x()).toBe(unexpectedResult);
         expect(proxy.b).toBeUndefined();
+    });
+
+    it('calls traps with correct arguments', () => {
+        const context = {};
+
+        const target = {
+            a: 3,
+            b: function () {},
+            c: function () {},
+            d: 0
+        };
+
+        const mock = {
+            a: jest.fn().mockReturnValue(true),
+            b: jest.fn().mockReturnValue(true),
+            c: jest.fn().mockReturnValue({}),
+            d: jest.fn().mockReturnValue(true)
+        };
+
+        const proxy = recursiveProxy({
+            creator: {
+                '.a': mock.a
+            },
+            apply: {
+                '.b': mock.b
+            },
+            construct: {
+                '.c': mock.c
+            },
+            setter: {
+                '.d': mock.d
+            }
+        }, target, context);
+
+        expect(proxy.a).toBeTruthy();
+        expect(mock.a).toBeCalledWith(3, target, 'a', ['a']);
+        expect(mock.a.mock.instances[0]).toBe(context);
+
+        const args = ['arg1', 2, {}];
+        expect(proxy.b(...args)).toBeTruthy();
+        expectLastCallParameter(mock.b, 0).toBe(target.b);
+        expectLastCallParameter(mock.b, 2).toEqual(expect.arrayContaining(args));
+        expectLastCallParameter(mock.b, 3).toEqual(expect.arrayContaining(['b']));
+        expect(mock.b.mock.instances[0]).toBe(context);
+
+        const args2 = ['arg1wqe', 2343242, {}, []];
+        expect(new proxy.c(...args2)).toBeTruthy();
+        expectLastCallParameter(mock.c, 0).toBe(target.c);
+        expectLastCallParameter(mock.c, 1).toEqual(expect.arrayContaining(args2));
+        expectLastCallParameter(mock.c, 3).toEqual(expect.arrayContaining(['c']));
+        expect(mock.c.mock.instances[0]).toBe(context);
+
+        proxy.d = 123;
+        expect(mock.d).toBeCalledWith(target, 'd', 123, ['d']);
+        expect(mock.d.mock.instances[0]).toBe(context);
     });
 });
